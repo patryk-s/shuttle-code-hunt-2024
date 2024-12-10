@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{ops::DerefMut, sync::Arc, time::Duration};
 
 use axum::{
     extract::{Request, State},
@@ -10,17 +10,27 @@ use axum::{
 use leaky_bucket::RateLimiter;
 use serde::Deserialize;
 use serde_json::json;
+use tokio::sync::Mutex;
+
+const BUCKET_SIZE: u8 = 5;
+const BUCKET_REFILL_SECS: u64 = 1;
+
+type MilkBucket = Arc<Mutex<RateLimiter>>;
+
+fn filled_bucket() -> RateLimiter {
+    RateLimiter::builder()
+        .initial(BUCKET_SIZE as usize)
+        .max(BUCKET_SIZE as usize)
+        .interval(Duration::from_secs(BUCKET_REFILL_SECS))
+        .build()
+}
 
 pub fn router() -> Router {
-    let limiter = Arc::new(
-        RateLimiter::builder()
-            .initial(5)
-            .max(5)
-            .interval(Duration::from_secs(1))
-            .build(),
-    );
+    let limiter = Arc::new(Mutex::new(filled_bucket()));
+
     Router::new()
         .route("/9/milk", post(task1))
+        .route("/9/refill", post(task4))
         .with_state(limiter.clone())
 }
 
@@ -28,12 +38,14 @@ pub fn router() -> Router {
 #[serde(rename_all = "lowercase")]
 enum Unit {
     Liters(f32),
+    Litres(f32),
     Gallons(f32),
+    Pints(f32),
 }
 
 #[axum::debug_handler]
-async fn task1(State(bucket): State<Arc<RateLimiter>>, req: Request) -> impl IntoResponse {
-    let got_milk = bucket.try_acquire(1);
+async fn task1(State(bucket): State<MilkBucket>, req: Request) -> impl IntoResponse {
+    let got_milk = bucket.lock().await.try_acquire(1);
     if !got_milk {
         return (StatusCode::TOO_MANY_REQUESTS, "No milk available\n").into_response();
     }
@@ -52,12 +64,28 @@ async fn task1(State(bucket): State<Arc<RateLimiter>>, req: Request) -> impl Int
                     let gallons = v * 0.264172;
                     return Json(json!({"gallons": gallons})).into_response();
                 }
+                Unit::Litres(v) => {
+                    let pints = v * 1.759754;
+                    return Json(json!({"pints": pints})).into_response();
+                }
                 Unit::Gallons(v) => {
                     let liters = v * 3.785412;
                     return Json(json!({"liters": liters})).into_response();
+                }
+                Unit::Pints(v) => {
+                    let litres = v * 0.5682612;
+                    return Json(json!({"litres": litres})).into_response();
                 }
             }
         }
     }
     (StatusCode::OK, "Milk withdrawn\n").into_response()
+}
+
+#[axum::debug_handler]
+async fn task4(State(bucket): State<MilkBucket>) -> impl IntoResponse {
+    let mut lock = bucket.lock().await;
+    let bucket = lock.deref_mut();
+    *bucket = filled_bucket();
+    StatusCode::OK
 }
