@@ -46,21 +46,18 @@ async fn task1(State(bucket): State<Arc<RateLimiter>>, req: Request) -> impl Int
                 Ok(v) => v,
                 Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
             };
-            // let payload = Bytes::from_request(req, state).await;
+
             match payload {
                 Unit::Liters(v) => {
                     let gallons = v * 0.264172;
-                    Json(json!({"gallons": gallons})).into_response()
+                    return Json(json!({"gallons": gallons})).into_response();
                 }
                 Unit::Gallons(v) => {
                     let liters = v * 3.785412;
-                    Json(json!({"liters": liters})).into_response()
+                    return Json(json!({"liters": liters})).into_response();
                 }
             }
-        } else {
-            StatusCode::BAD_REQUEST.into_response()
         }
-    } else {
-        (StatusCode::OK, "Milk withdrawn\n").into_response()
     }
+    (StatusCode::OK, "Milk withdrawn\n").into_response()
 }
