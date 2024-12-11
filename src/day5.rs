@@ -3,7 +3,7 @@ use axum::{
     body::Bytes,
     extract::{FromRequest, Request},
     http::{header::CONTENT_TYPE, StatusCode},
-    response::{IntoResponse, Response},
+    response::IntoResponse,
     routing::post,
     Router,
 };
@@ -15,25 +15,18 @@ pub fn router() -> Router {
 }
 
 #[axum::debug_handler]
-async fn task1(ValidPayload(manifest): ValidPayload<Manifest>) -> Result<String, Response> {
-    // dbg!(&toml);
-    let Some(package) = manifest.package else {
-        return Err(StatusCode::NO_CONTENT.into_response());
-    };
+async fn task1(ValidPayload(manifest): ValidPayload<Manifest>) -> Result<String, Error> {
+    let package = manifest.package.ok_or(Error::NoContent)?;
     let keywords = package
         .keywords
-        .ok_or_else(|| (StatusCode::BAD_REQUEST, "Magic keyword not provided").into_response())?
+        .ok_or(Error::NoKeyword)?
         .as_local()
         .unwrap();
     if !keywords.contains(&"Christmas 2024".to_string()) {
-        return Err((StatusCode::BAD_REQUEST, "Magic keyword not provided").into_response());
+        return Err(Error::NoKeyword);
     }
-    let Some(metadata) = package.metadata else {
-        return Err(StatusCode::NO_CONTENT.into_response());
-    };
-    let Some(orders) = metadata.get("orders") else {
-        return Err(StatusCode::NO_CONTENT.into_response());
-    };
+    let metadata = package.metadata.ok_or(Error::NoContent)?;
+    let orders = metadata.get("orders").ok_or(Error::NoContent)?;
     let mut output = String::new();
     for order in orders.as_array().unwrap() {
         let order = order.as_table().unwrap();
@@ -50,36 +43,44 @@ async fn task1(ValidPayload(manifest): ValidPayload<Manifest>) -> Result<String,
     }
 
     if output.is_empty() {
-        return Err(StatusCode::NO_CONTENT.into_response());
+        return Err(Error::NoContent);
     }
     Ok(output.trim().to_string())
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum TomlRejection {
+pub enum Error {
     #[error("Failed to deserialize the request body")]
-    ManifestError(#[from] cargo_manifest::Error),
+    Manifest(#[from] cargo_manifest::Error),
     #[error("Failed to deserialize the request body")]
-    SerdeYamlError(#[from] serde_yaml::Error),
+    SerdeYaml(#[from] serde_yaml::Error),
     #[error("Request body didn't contain valid bytes")]
     StringRejection(#[from] axum::extract::rejection::BytesRejection),
     #[error("Media type not supported")]
     UnsupportedMedia,
+    #[error("No orders in request")]
+    NoContent,
+    #[error("Magic keyword not provided")]
+    NoKeyword,
 }
 
-impl IntoResponse for TomlRejection {
+impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Self::ManifestError(e) => {
+            Self::Manifest(e) => {
                 eprintln!("ManifestError: {e}");
                 (StatusCode::BAD_REQUEST, "Invalid manifest").into_response()
             }
-            Self::SerdeYamlError(e) => {
+            Self::SerdeYaml(e) => {
                 eprintln!("SerdeYamlError: {e}");
                 (StatusCode::BAD_REQUEST, "Invalid manifest").into_response()
             }
             Self::StringRejection(error) => error.into_response(),
             Self::UnsupportedMedia => (StatusCode::UNSUPPORTED_MEDIA_TYPE).into_response(),
+            Self::NoContent => (StatusCode::NO_CONTENT).into_response(),
+            Self::NoKeyword => {
+                (StatusCode::BAD_REQUEST, "Magic keyword not provided").into_response()
+            }
         }
     }
 }
@@ -91,7 +92,7 @@ impl<S> FromRequest<S> for ValidPayload<Manifest>
 where
     S: Send + Sync,
 {
-    type Rejection = TomlRejection;
+    type Rejection = Error;
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         let content_type_header = req.headers().get(CONTENT_TYPE);
