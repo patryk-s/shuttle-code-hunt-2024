@@ -5,6 +5,7 @@ use axum::{
     Router,
 };
 
+mod day12;
 mod day2;
 mod day5;
 mod day9;
@@ -16,7 +17,8 @@ async fn main() -> shuttle_axum::ShuttleAxum {
         .route("/-1/seek", get(found))
         .merge(day2::router())
         .merge(day5::router())
-        .merge(day9::router());
+        .merge(day9::router())
+        .merge(day12::router());
     Ok(router.into())
 }
 
