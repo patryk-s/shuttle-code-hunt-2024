@@ -7,34 +7,54 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use tokio::sync::RwLock;
 
+const RNG_SEED: u64 = 2024;
+
+struct Data {
+    board: Board,
+    rng: StdRng,
+}
+
 pub fn router() -> Router {
-    let board = Arc::new(RwLock::new(Board::default()));
+    let board = Board::default();
+    let rng = StdRng::seed_from_u64(RNG_SEED);
+
+    let data = Arc::new(RwLock::new(Data { board, rng }));
 
     Router::new()
         .route("/12/board", get(get_board))
         .route("/12/reset", post(reset_board))
         .route("/12/place/:team/:column", post(place))
-        .with_state(board.clone())
+        .route("/12/random-board", get(random_board))
+        .with_state(data)
 }
 
 #[axum::debug_handler]
-async fn get_board(State(board): State<Arc<RwLock<Board>>>) -> impl IntoResponse {
-    board.read().await.to_string()
+async fn get_board(State(data): State<Arc<RwLock<Data>>>) -> impl IntoResponse {
+    data.read().await.board.to_string()
 }
 
 #[axum::debug_handler]
-async fn reset_board(State(board): State<Arc<RwLock<Board>>>) -> impl IntoResponse {
+async fn reset_board(State(data): State<Arc<RwLock<Data>>>) -> impl IntoResponse {
     eprintln!("resetting");
-    let mut board = board.write_owned().await;
-    *board = Board::default();
-    board.to_string()
+    let mut data = data.write_owned().await;
+    let rng = StdRng::seed_from_u64(RNG_SEED);
+    data.board = Board::default();
+    data.rng = rng;
+    data.board.to_string()
+}
+
+#[axum::debug_handler]
+async fn random_board(State(data): State<Arc<RwLock<Data>>>) -> impl IntoResponse {
+    let mut data = data.write_owned().await;
+    Board::new_random(&mut data.rng).to_string()
 }
 
 #[axum::debug_handler]
 async fn place(
-    State(board): State<Arc<RwLock<Board>>>,
+    State(data): State<Arc<RwLock<Data>>>,
     Path((team, column)): Path<(String, u8)>,
 ) -> impl IntoResponse {
     let team = match team.as_str() {
@@ -46,10 +66,10 @@ async fn place(
         return StatusCode::BAD_REQUEST.into_response();
     }
     let column = column - 1;
-    let mut board = board.write_owned().await;
-    match board.place(team, column as usize) {
-        Ok(_) => board.to_string().into_response(),
-        Err(_) => (StatusCode::SERVICE_UNAVAILABLE, board.to_string()).into_response(),
+    let mut data = data.write_owned().await;
+    match data.board.place(team, column as usize) {
+        Ok(_) => data.board.to_string().into_response(),
+        Err(_) => (StatusCode::SERVICE_UNAVAILABLE, data.board.to_string()).into_response(),
     }
 }
 
@@ -153,6 +173,20 @@ impl Board {
             // "Empty" winner means "no winner" (see Display impl for Board)
             self.winner = Some(Tile::Empty);
         }
+    }
+
+    fn new_random(rng: &mut StdRng) -> Self {
+        let mut board = Self {
+            winner: None,
+            state: [Tile::Milk; 16],
+        };
+        for i in 0..16 {
+            if rng.gen() {
+                board.state[i] = Tile::Cookie;
+            }
+        }
+        board.check_winner();
+        board
     }
 }
 
