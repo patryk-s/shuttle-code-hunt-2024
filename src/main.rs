@@ -6,6 +6,7 @@ use axum::{
 };
 
 mod day12;
+mod day16;
 mod day2;
 mod day5;
 mod day9;
@@ -18,7 +19,8 @@ async fn main() -> shuttle_axum::ShuttleAxum {
         .merge(day2::router())
         .merge(day5::router())
         .merge(day9::router())
-        .merge(day12::router());
+        .merge(day12::router())
+        .merge(day16::router());
     Ok(router.into())
 }
 
