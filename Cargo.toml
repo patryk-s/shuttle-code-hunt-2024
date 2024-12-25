@@ -20,4 +20,5 @@ sqlx = { version = "0.8.2", features = ["uuid", "chrono"] }
 thiserror = "2.0.6"
 tokio = "1.42.0"
 toml = "0.8.19"
+tower-http = { version = "0.6.2", features = ["fs"] }
 uuid = { version = "1.11.0", features = ["v4"] }

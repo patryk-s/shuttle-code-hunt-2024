@@ -4,6 +4,7 @@ use axum::{
     routing::get,
     Router,
 };
+use tower_http::services::ServeDir;
 
 mod day12;
 mod day16;
@@ -24,7 +25,8 @@ async fn main(#[shuttle_shared_db::Postgres] pool: sqlx::PgPool) -> shuttle_axum
         .merge(day9::router())
         .merge(day12::router())
         .merge(day16::router())
-        .merge(day19::router(pool));
+        .merge(day19::router(pool))
+        .nest_service("/assets", ServeDir::new("assets"));
     Ok(router.into())
 }
 
