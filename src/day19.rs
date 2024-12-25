@@ -6,6 +6,7 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use sqlx::{
     prelude::FromRow,
     query, query_as,
@@ -18,6 +19,7 @@ pub fn router(pool: PgPool) -> Router {
     Router::new()
         .route("/19/reset", post(reset))
         .route("/19/cite/:id", get(get_id))
+        .route("/19/list", get(list))
         .route("/19/undo/:id", put(update))
         .route("/19/draft", post(create))
         .route("/19/remove/:id", delete(remove))
@@ -100,6 +102,28 @@ async fn get_id(State(db): State<PgPool>, Path(id): Path<Uuid>) -> impl IntoResp
         Ok(quote) => (StatusCode::OK, Json(quote)).into_response(),
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
+}
+
+#[axum::debug_handler]
+async fn list(State(db): State<PgPool>) -> impl IntoResponse {
+    let quotes = match query_as::<_, Quote>(
+        r#"SELECT id, author, quote, created_at, version FROM quotes ORDER BY created_at"#,
+    )
+    .fetch_all(&db)
+    .await
+    {
+        Ok(quotes) => quotes,
+        Err(_) => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let page = 1;
+    let next_token = if quotes.len() > 3 { Some("foo") } else { None };
+
+    (
+        StatusCode::OK,
+        Json(json!({"quotes": quotes, "page": page, "next_token": next_token})),
+    )
+        .into_response()
 }
 
 #[derive(Debug, FromRow, Serialize)]
