@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, author, quote, created_at, version FROM quotes where id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "author",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "quote",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "version",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "92fcdf2f17af73d0195c630be6c590ba6f7e5b4c054589e5b0a72eb371ca90ff"
+}

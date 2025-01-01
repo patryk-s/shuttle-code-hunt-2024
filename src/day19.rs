@@ -28,7 +28,7 @@ pub fn router(pool: PgPool) -> Router {
 
 #[axum::debug_handler]
 async fn reset(State(db): State<PgPool>) -> impl IntoResponse {
-    query(r#"DELETE FROM quotes"#)
+    query!(r#"DELETE FROM quotes"#)
         .execute(&db)
         .await
         .expect("deleting quotes");
@@ -37,10 +37,13 @@ async fn reset(State(db): State<PgPool>) -> impl IntoResponse {
 #[axum::debug_handler]
 async fn create(State(db): State<PgPool>, Json(draft): Json<Draft>) -> impl IntoResponse {
     let id = Uuid::new_v4();
-    match query_as::<_, Quote>(r#"INSERT INTO quotes (id, author, quote) VALUES ($1, $2, $3) RETURNING id, author, quote, created_at, version"#)
-        .bind(id)
-        .bind(draft.author)
-        .bind(draft.quote)
+    match query_as!(
+        Quote,
+        r#"INSERT INTO quotes (id, author, quote) VALUES ($1, $2, $3) RETURNING id, author, quote, created_at, version"#,
+        id,
+        draft.author,
+        draft.quote,
+    )
         .fetch_one(&db)
         .await
     {
@@ -54,10 +57,11 @@ async fn create(State(db): State<PgPool>, Json(draft): Json<Draft>) -> impl Into
 
 #[axum::debug_handler]
 async fn remove(State(db): State<PgPool>, Path(id): Path<Uuid>) -> impl IntoResponse {
-    match query_as::<_, Quote>(
+    match query_as!(
+        Quote,
         r#"DELETE FROM quotes WHERE id = $1 RETURNING id, author, quote, created_at, version"#,
+        id,
     )
-    .bind(id)
     .fetch_one(&db)
     .await
     {
@@ -75,10 +79,13 @@ async fn update(
     Path(id): Path<Uuid>,
     Json(draft): Json<Draft>,
 ) -> impl IntoResponse {
-    match query_as::<_, Quote>(r#"UPDATE quotes SET author = $1, quote = $2, version = (SELECT version FROM quotes WHERE id = $3) + 1 WHERE id = $3 RETURNING id, author, quote, created_at, version"#)
-        .bind(draft.author)
-        .bind(draft.quote)
-        .bind(id)
+    match query_as!(
+        Quote,
+        r#"UPDATE quotes SET author = $1, quote = $2, version = (SELECT version FROM quotes WHERE id = $3) + 1 WHERE id = $3 RETURNING id, author, quote, created_at, version"#,
+        draft.author,
+        draft.quote,
+        id,
+    )
         .fetch_one(&db)
         .await
     {
@@ -92,10 +99,11 @@ async fn update(
 
 #[axum::debug_handler]
 async fn get_id(State(db): State<PgPool>, Path(id): Path<Uuid>) -> impl IntoResponse {
-    match query_as::<_, Quote>(
+    match query_as!(
+        Quote,
         r#"SELECT id, author, quote, created_at, version FROM quotes where id = $1"#,
+        id,
     )
-    .bind(id)
     .fetch_one(&db)
     .await
     {
@@ -106,7 +114,8 @@ async fn get_id(State(db): State<PgPool>, Path(id): Path<Uuid>) -> impl IntoResp
 
 #[axum::debug_handler]
 async fn list(State(db): State<PgPool>) -> impl IntoResponse {
-    let quotes = match query_as::<_, Quote>(
+    let quotes = match query_as!(
+        Quote,
         r#"SELECT id, author, quote, created_at, version FROM quotes ORDER BY created_at"#,
     )
     .fetch_all(&db)

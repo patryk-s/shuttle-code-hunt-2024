@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM quotes WHERE id = $1 RETURNING id, author, quote, created_at, version",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "author",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "quote",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "version",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "7e2baf1222e34cd6e00f484a16b2e98911b0a1abd5ae205218a4880df2bb8519"
+}

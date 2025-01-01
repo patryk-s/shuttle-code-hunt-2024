@@ -1,0 +1,48 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE quotes SET author = $1, quote = $2, version = (SELECT version FROM quotes WHERE id = $3) + 1 WHERE id = $3 RETURNING id, author, quote, created_at, version",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "author",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "quote",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "version",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8a8186a28c7fd86c8c6006954ea4e11791d93d1f47e4fbdf4b108194e6cd0717"
+}
