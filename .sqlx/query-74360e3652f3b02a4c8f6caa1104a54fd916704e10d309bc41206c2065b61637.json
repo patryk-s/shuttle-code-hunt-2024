@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, author, quote, created_at, version FROM quotes ORDER BY created_at",
+  "query": "SELECT id, author, quote, created_at, version FROM quotes ORDER BY created_at LIMIT $1 OFFSET $2",
   "describe": {
     "columns": [
       {
@@ -30,7 +30,10 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
     },
     "nullable": [
       false,
@@ -40,5 +43,5 @@
       false
     ]
   },
-  "hash": "4e548c9145f76b3ff2011f585029e09f0d31003cf8bc046e2fac8dfa302ea059"
+  "hash": "74360e3652f3b02a4c8f6caa1104a54fd916704e10d309bc41206c2065b61637"
 }
